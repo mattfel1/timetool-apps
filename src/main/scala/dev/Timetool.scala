@@ -315,7 +315,7 @@ class Timetool_Primitive_Polyfit_4 extends Timetool_Primitive(Polyfit_4)
           val filter = filter_box(fullfeatures)
 
 //          val delayBox = if (filter.shouldKeep) bbox(fullfeatures) else DELAY(0)
-          val delayBox = if (filter.shouldKeep) infer_box(fullfeatures) else bbox_factory.DELAY(0)
+          val delayBox = if (filter.shouldKeep) infer_box(fullfeatures) else bbox_factory.DELAY(fullfeatures.row, 0, Bit(false))
 
           delay_queue.enq(delayBox.delay)
         }
@@ -340,3 +340,94 @@ class Timetool_Primitive_Polyfit_4 extends Timetool_Primitive(Polyfit_4)
   }
 }
 
+
+@spatial object Timetool_Aggregator extends SpatialApp {
+//  override def runtimeArgs: Args = "0 157 341 35.2498 -28.1037 12039 12 0"
+//  type T = FixPt[TRUE,_16,_16]
+  import spatial.dsl._
+
+  def main(args: Array[String]): Unit = {
+    val bbox_factory = new Timetool_Boxes[_32, _16, _16]()
+    type I = bbox_factory.I
+    type T = bbox_factory.T
+    type FEATURES = bbox_factory.FEATURES
+    type DELAY = bbox_factory.DELAY
+    type PRED = bbox_factory.PRED
+    type DELAYPACKET = bbox_factory.DELAYPACKET
+
+    val rows_per_image = 52
+    assert(rows_per_image <= 52, "Only ripped the first 52 rows of a sample image for this app")
+    val num_streams = 4
+    val lines_per_image = rows_per_image / num_streams
+
+    val aggregator_box = bbox_factory.Aggregator(rows_per_image, num_streams)
+
+    val prediction_sample = Array[T](-716.3620.toUnchecked[T], -330.1214.toUnchecked[T], -519.684.toUnchecked[T], -896.4518.toUnchecked[T], -1077.711.toUnchecked[T], -890.712.toUnchecked[T], -513.6430.toUnchecked[T], 44.15193.toUnchecked[T], -323.927.toUnchecked[T], -1072.1175.toUnchecked[T], -1442.2030.toUnchecked[T], -1055.3090.toUnchecked[T], -305.31416.toUnchecked[T], -148.42493.toUnchecked[T], -710.4781.toUnchecked[T], -1265.2079.toUnchecked[T], -1259.7677.toUnchecked[T], -698.6960.toUnchecked[T], -142.08236.toUnchecked[T], 451.0909.toUnchecked[T], -129.38156.toUnchecked[T], -1248.8739.toUnchecked[T], -1791.3176.toUnchecked[T], -1153.378.toUnchecked[T], -91.15338.toUnchecked[T], 248.2987.toUnchecked[T], -507.59681.toUnchecked[T], -1431.6159.toUnchecked[T], -1603.9838.toUnchecked[T], -844.6271.toUnchecked[T], 70.19418.toUnchecked[T], 254.9741.toUnchecked[T], 50.654317.toUnchecked[T], -873.464.toUnchecked[T], -1614.2710.toUnchecked[T], -1410.3875.toUnchecked[T], -483.36309.toUnchecked[T], 876.7110.toUnchecked[T], 89.78333.toUnchecked[T], -1332.126.toUnchecked[T], -2058.3218.toUnchecked[T], -1326.2464.toUnchecked[T], 155.29917.toUnchecked[T], 645.245.toUnchecked[T], -286.6558.toUnchecked[T], -1524.68.toUnchecked[T], -1881.5067.toUnchecked[T], -959.0747.toUnchecked[T], 330.1995.toUnchecked[T], 694.3043.toUnchecked[T], 268.34211.toUnchecked[T], -1038.4596.toUnchecked[T])
+    // Fill streams
+    val stream0_rows = DRAM[I](lines_per_image)
+    val stream0_delays = DRAM[T](lines_per_image)
+    setMem(stream0_rows, Array.tabulate[I](lines_per_image){i => (i + 0).to[I]})
+    setMem(stream0_delays, Array.tabulate[T](lines_per_image){i => prediction_sample(i)})
+    val stream1_rows = DRAM[I](lines_per_image)
+    val stream1_delays = DRAM[T](lines_per_image)
+    setMem(stream1_rows, Array.tabulate[I](lines_per_image){i => (i + lines_per_image).to[I]})
+    setMem(stream1_delays, Array.tabulate[T](lines_per_image){i => prediction_sample(i + lines_per_image)})
+    val stream2_rows = DRAM[I](lines_per_image)
+    val stream2_delays = DRAM[T](lines_per_image)
+    setMem(stream2_rows, Array.tabulate[I](lines_per_image){i => (i + 2*lines_per_image).to[I]})
+    setMem(stream2_delays, Array.tabulate[T](lines_per_image){i => prediction_sample(i + 2*lines_per_image)})
+    val stream3_rows = DRAM[I](lines_per_image)
+    val stream3_delays = DRAM[T](lines_per_image)
+    setMem(stream3_rows, Array.tabulate[I](lines_per_image){i => (i + 3*lines_per_image).to[I]})
+    setMem(stream3_delays, Array.tabulate[T](lines_per_image){i => prediction_sample(i + 3*lines_per_image)})
+
+    val mean = ArgOut[T]
+    val variance = ArgOut[T]
+
+    Accel {
+
+      Stream{
+        // Stage 0: Load data
+        val stream0_rows_fifo = FIFO[I](lines_per_image)
+        val stream0_delays_fifo = FIFO[T](lines_per_image)
+        stream0_rows_fifo load stream0_rows
+        stream0_delays_fifo load stream0_delays
+        val stream1_rows_fifo = FIFO[I](lines_per_image)
+        val stream1_delays_fifo = FIFO[T](lines_per_image)
+        stream1_rows_fifo load stream1_rows
+        stream1_delays_fifo load stream1_delays
+        val stream2_rows_fifo = FIFO[I](lines_per_image)
+        val stream2_delays_fifo = FIFO[T](lines_per_image)
+        stream2_rows_fifo load stream2_rows
+        stream2_delays_fifo load stream2_delays
+        val stream3_rows_fifo = FIFO[I](lines_per_image)
+        val stream3_delays_fifo = FIFO[T](lines_per_image)
+        stream3_rows_fifo load stream3_rows
+        stream3_delays_fifo load stream3_delays
+
+        // Stage 1: Pack data into structs
+        val stream0 = FIFO[DELAY](lines_per_image)
+        val stream1 = FIFO[DELAY](lines_per_image)
+        val stream2 = FIFO[DELAY](lines_per_image)
+        val stream3 = FIFO[DELAY](lines_per_image)
+        Foreach(lines_per_image by 1){ i =>
+          stream0.enq(bbox_factory.DELAY(stream0_rows_fifo.deq(), stream0_delays_fifo.deq(), Bit(true)))
+          stream1.enq(bbox_factory.DELAY(stream1_rows_fifo.deq(), stream1_delays_fifo.deq(), Bit(true)))
+          stream2.enq(bbox_factory.DELAY(stream2_rows_fifo.deq(), stream2_delays_fifo.deq(), Bit(true)))
+          stream3.enq(bbox_factory.DELAY(stream3_rows_fifo.deq(), stream3_delays_fifo.deq(), Bit(true)))
+        }
+
+        // Stage 2: Aggregate
+        val result = aggregator_box(bbox_factory.DELAYPACKET(stream0.deqInterface(), stream1.deqInterface(), stream2.deqInterface(), stream3.deqInterface()))
+
+        // Stage 3: Report answer
+        mean := result.mean
+        variance := result.variance
+      }
+    }
+
+    println(r"got: ${getArg(mean)}, ${getArg(variance)}")
+    println(r"wanted: -665.62979, 1792.6974")
+
+  }
+}

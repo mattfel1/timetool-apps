@@ -21,14 +21,22 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
                                 c6: Cast[FixPt[TRUE, DEC, FRAC], FixPt[FALSE, _3, _16]],
                                 c7: Cast[FixPt[FALSE, _3, _16], FixPt[TRUE, DEC, FRAC]],
                                 c8: Cast[FixPt[FALSE, _0, _16], FixPt[TRUE, DEC, FRAC]],
+                                c9: Cast[FixPt[TRUE, DEC, FRAC], FixPt[TRUE, _32, _16]],
+                                c10: Cast[FixPt[TRUE, _32, _16], FixPt[TRUE, DEC, FRAC]],
+                                c11: Cast[FixPt[FALSE, IDX, _0], FixPt[TRUE, _32, _16]],
+                                c12: Cast[FixPt[FALSE, IDX, _0], I32],
 ) {
   type I = FixPt[FALSE, IDX, _0]
   type T = FixPt[TRUE, DEC, FRAC]
+  type H = FixPt[TRUE,_32,_16]
   type ResidualType = FixPt[FALSE, _0, _16]
   type AccumResidualType = FixPt[FALSE, _3, _16]
   type ParameterIndex = FixPt[FALSE, _10, _0]
   @struct case class FEATURES(row: I, rising_idx: I, falling_idx: I, volume: I, rising_weight: T, falling_weight: T, first_val: T, last_val: T)
-  @struct case class DELAY(delay: T)
+  @struct case class DELAY(row: I, delay: T, valid: Bit)
+  @streamstruct case class DELAYPACKET(stream0: DELAY, stream1: DELAY, stream2: DELAY, stream3: DELAY)
+  @streamstruct case class PRED(mean: T, variance: T)
+
   @struct case class KEEP(shouldKeep: Bit)
 
   // Filter helpers
@@ -264,7 +272,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val features = center(in, mean)
     val result = forward_prop(features, List(64,1), List(l1W, l2W), List(l1B, l2B), List(RELU, {x => x}))
 
-    DELAY(result)
+    DELAY(in.row, result, Bit(true))
   }
   def NN_64_Leaky = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val mean_values = NN_64_Leaky_Raw_Data.NN_64_Leaky_mean[I,T]({x => x.to[I]}, {x => x.to[T]})
@@ -274,7 +282,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val features = center(in, mean)
     val result = forward_prop(features, List(64,1), List(l1W, l2W), List(l1B, l2B), List(LeakyRELU, {x => x}))
 
-    DELAY(result)
+    DELAY(in.row, result, Bit(true))
   }
   def NN_32_32_RELU = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val mean_values = NN_32_32_RELU_Raw_Data.NN_32_32_RELU_mean[I,T]({x => x.to[I]}, {x => x.to[T]})
@@ -284,7 +292,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val features = center(in, mean)
     val result = forward_prop(features, List(32,32,1), List(l1W, l2W, l3W), List(l1B, l2B, l3B), List(RELU, RELU, {x => x}))
 
-    DELAY(result)
+    DELAY(in.row, result, Bit(true))
   }
   def NN_32_32_Leaky = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val mean_values = NN_32_32_Leaky_Raw_Data.NN_32_32_Leaky_mean[I,T]({x => x.to[I]}, {x => x.to[T]})
@@ -294,7 +302,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val features = center(in, mean)
     val result = forward_prop(features, List(32,32,1), List(l1W, l2W, l3W), List(l1B, l2B, l3B), List(LeakyRELU, LeakyRELU, {x => x}))
 
-    DELAY(result)
+    DELAY(in.row, result, Bit(true))
   }
   def NN_16_16_RELU = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val mean_values = NN_16_16_RELU_Raw_Data.NN_16_16_RELU_mean[I,T]({x => x.to[I]}, {x => x.to[T]})
@@ -304,7 +312,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val features = center(in, mean)
     val result = forward_prop(features, List(16,16,1), List(l1W, l2W, l3W), List(l1B, l2B, l3B), List(RELU, RELU, {x => x}))
 
-    DELAY(result)
+    DELAY(in.row, result, Bit(true))
   }
   def NN_16_16_Leaky = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val mean_values = NN_16_16_Leaky_Raw_Data.NN_16_16_Leaky_mean[I,T]({x => x.to[I]}, {x => x.to[T]})
@@ -314,7 +322,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val features = center(in, mean)
     val result = forward_prop(features, List(16,16,1), List(l1W, l2W, l3W), List(l1B, l2B, l3B), List(LeakyRELU, LeakyRELU, {x => x}))
 
-    DELAY(result)
+    DELAY(in.row, result, Bit(true))
   }
   def NN_8_8_RELU = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val mean_values = NN_8_8_RELU_Raw_Data.NN_8_8_RELU_mean[I,T]({x => x.to[I]}, {x => x.to[T]})
@@ -324,7 +332,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val features = center(in, mean)
     val result = forward_prop(features, List(8,8,1), List(l1W, l2W, l3W), List(l1B, l2B, l3B), List(RELU, RELU, {x => x}))
 
-    DELAY(result)
+    DELAY(in.row, result, Bit(true))
   }
   def NN_4_4_RELU = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val mean_values = NN_4_4_RELU_Raw_Data.NN_4_4_RELU_mean[I,T]({x => x.to[I]}, {x => x.to[T]})
@@ -334,7 +342,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val features = center(in, mean)
     val result = forward_prop(features, List(4,4,1), List(l1W, l2W, l3W), List(l1B, l2B, l3B), List(RELU, RELU, {x => x}))
 
-    DELAY(result)
+    DELAY(in.row, result, Bit(true))
   }
   def NN_16_4_RELU = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val mean_values = NN_16_4_RELU_Raw_Data.NN_16_4_RELU_mean[I,T]({x => x.to[I]}, {x => x.to[T]})
@@ -344,7 +352,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val features = center(in, mean)
     val result = forward_prop(features, List(16,4,1), List(l1W, l2W, l3W), List(l1B, l2B, l3B), List(RELU, RELU, {x => x}))
 
-    DELAY(result)
+    DELAY(in.row, result, Bit(true))
   }
   def NN_8_4_RELU = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val mean_values = NN_8_4_RELU_Raw_Data.NN_8_4_RELU_mean[I,T]({x => x.to[I]}, {x => x.to[T]})
@@ -354,78 +362,78 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val features = center(in, mean)
     val result = forward_prop(features, List(8,4,1), List(l1W, l2W, l3W), List(l1B, l2B, l3B), List(RELU, RELU, {x => x}))
 
-    DELAY(result)
+    DELAY(in.row, result, Bit(true))
   }
 
   def XGBoost_10_5 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val trees = XGBoost_Raw_Data_10s.XGBoost_10_5_trees[T](x => x.toSaturating[T])
-    DELAY(trees.map { t =>
+    DELAY(in.row, trees.map { t =>
       val root = buildTree(0, t)
       root.left.get.evaluate(in)
-    }.reduceTree {_ + _} + 0.5.to[T])
+    }.reduceTree {_ + _} + 0.5.to[T], Bit(true))
   }
   def XGBoost_20_5 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val trees = XGBoost_Raw_Data_20_5.XGBoost_20_5_trees[T](x => x.toSaturating[T])
-    DELAY(trees.map { t =>
+    DELAY(in.row, trees.map { t =>
       val root = buildTree(0, t)
       root.left.get.evaluate(in)
-    }.reduceTree {_ + _} + 0.5.to[T])
+    }.reduceTree {_ + _} + 0.5.to[T], Bit(true))
   }
   def XGBoost_25_5 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val trees = XGBoost_Raw_Data_25s.XGBoost_25_5_trees[T](x => x.toSaturating[T])
-    DELAY(trees.map { t =>
+    DELAY(in.row, trees.map { t =>
       val root = buildTree(0, t)
       root.left.get.evaluate(in)
-    }.reduceTree {_ + _} + 0.5.to[T])
+    }.reduceTree {_ + _} + 0.5.to[T], Bit(true))
   }
   def XGBoost_10_6 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val trees = XGBoost_Raw_Data_10s.XGBoost_10_6_trees[T](x => x.toSaturating[T])
-    DELAY(trees.map { t =>
+    DELAY(in.row, trees.map { t =>
       val root = buildTree(0, t)
       root.left.get.evaluate(in)
-    }.reduceTree {_ + _} + 0.5.to[T])
+    }.reduceTree {_ + _} + 0.5.to[T], Bit(true))
   }
   def XGBoost_20_6 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val trees = XGBoost_Raw_Data_20_6.XGBoost_20_6_trees[T](x => x.toSaturating[T])
-    DELAY(trees.map { t =>
+    DELAY(in.row, trees.map { t =>
       val root = buildTree(0, t)
       root.left.get.evaluate(in)
-    }.reduceTree {_ + _} + 0.5.to[T])
+    }.reduceTree {_ + _} + 0.5.to[T], Bit(true))
   }
   def XGBoost_40_4 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val trees = XGBoost_Raw_Data_40s.XGBoost_40_4_trees[T](x => x.toSaturating[T])
-    DELAY(trees.map { t =>
+    DELAY(in.row, trees.map { t =>
       val root = buildTree(0, t)
       root.left.get.evaluate(in)
-    }.reduceTree {_ + _} + 0.5.to[T])
+    }.reduceTree {_ + _} + 0.5.to[T], Bit(true))
   }
   def XGBoost_64_4 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val trees = XGBoost_Raw_Data_64_4.XGBoost_64_4_trees[T](x => x.toSaturating[T])
-    DELAY(trees.map { t =>
+    DELAY(in.row, trees.map { t =>
       val root = buildTree(0, t)
       root.left.get.evaluate(in)
-    }.reduceTree {_ + _} + 0.5.to[T])
+    }.reduceTree {_ + _} + 0.5.to[T], Bit(true))
   }
   def XGBoost_96_4 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val trees = XGBoost_Raw_Data_96_4.XGBoost_96_4_trees[T](x => x.toSaturating[T])
-    DELAY(trees.map { t =>
+    DELAY(in.row, trees.map { t =>
       val root = buildTree(0, t)
       root.left.get.evaluate(in)
-    }.reduceTree {_ + _} + 0.5.to[T])
+    }.reduceTree {_ + _} + 0.5.to[T], Bit(true))
   }
   def XGBoost_128_4 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val trees = XGBoost_Raw_Data_128_4.XGBoost_128_4_trees[T](x => x.toSaturating[T])
-    DELAY(trees.map { t =>
+    DELAY(in.row, trees.map { t =>
       val root = buildTree(0, t)
       root.left.get.evaluate(in)
-    }.reduceTree {_ + _} + 0.5.to[T])
+    }.reduceTree {_ + _} + 0.5.to[T], Bit(true))
   }
   def XGBoost_128_3 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val trees = XGBoost_Raw_Data_128_3.XGBoost_128_3_trees[T](x => x.toSaturating[T])
-    DELAY(trees.map { t =>
+    DELAY(in.row, trees.map { t =>
       val root = buildTree(0, t)
       root.left.get.evaluate(in)
-    }.reduceTree {_ + _} + 0.5.to[T])
+    }.reduceTree {_ + _} + 0.5.to[T], Bit(true))
   }
 
   def Simplex_4_2 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
@@ -438,7 +446,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Simplex(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
   def Simplex_8_2 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 8
@@ -450,7 +458,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Simplex(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
   def Simplex_16_2 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 16
@@ -462,7 +470,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Simplex(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
   def Simplex_4_3 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 4
@@ -474,7 +482,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Simplex(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
   def Simplex_4_4 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 4
@@ -486,7 +494,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Simplex(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
     def Simplex_4_5 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 4
@@ -498,7 +506,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Simplex(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
   def Simplex_8_3 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 8
@@ -510,7 +518,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Simplex(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))  }
+    DELAY(in.row, network.evaluate(in), Bit(true))  }
   def Simplex_8_4 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 8
     val size = 4
@@ -521,7 +529,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Simplex(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
 
   def Hypercube_4_2 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
@@ -534,7 +542,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Hypercube(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
   def Hypercube_8_2 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 8
@@ -546,7 +554,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Hypercube(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
   def Hypercube_16_2 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 16
@@ -558,7 +566,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Hypercube(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
   def Hypercube_4_3 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 4
@@ -570,7 +578,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Hypercube(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))  }
+    DELAY(in.row, network.evaluate(in), Bit(true))  }
   def Hypercube_4_4 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 4
     val size = 4
@@ -581,7 +589,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Hypercube(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
     def Hypercube_4_5 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 4
@@ -593,7 +601,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Hypercube(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
   def Hypercube_8_3 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 8
@@ -605,7 +613,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Hypercube(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))  }
+    DELAY(in.row, network.evaluate(in), Bit(true))  }
   def Hypercube_8_4 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val num_keypoints = 8
     val size = 4
@@ -616,7 +624,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
       "last_val" -> new Calibrator(Seq.tabulate(num_keypoints){i => 0.1 + i}, Seq.tabulate(num_keypoints){i => 0.1 + i}),
     )
     val network = new Hypercube(calibs, 4, size, Seq.tabulate(scala.math.pow(size,4).toInt){ i => 0.1 + i })
-    DELAY(network.evaluate(in))
+    DELAY(in.row, network.evaluate(in), Bit(true))
   }
 
   def Polyfit_2 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
@@ -625,7 +633,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val falling_pred = compute(in.falling_idx.to[T], falling_model)
     val full_pred = oneHotMux(Seq(in.first_val < 30.to[T] && in.last_val < 30.to[T], in.first_val < 30.to[T] && in.last_val >= 30.to[T], in.first_val >= 30.to[T] && in.last_val < 30.to[T]),
                               Seq((rising_pred + falling_pred)/2.to[T], rising_pred, falling_pred))
-    DELAY(full_pred)
+    DELAY(in.row, full_pred, Bit(true))
   }
   def Polyfit_3 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val (rising_model, falling_model) = Polyfit_Raw_Data.Polyfit_3_params[T](x => x.toSaturating[T])
@@ -633,7 +641,7 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val falling_pred = compute(in.falling_idx.to[T], falling_model)
     val full_pred = oneHotMux(Seq(in.first_val < 30.to[T] && in.last_val < 30.to[T], in.first_val < 30.to[T] && in.last_val >= 30.to[T], in.first_val >= 30.to[T] && in.last_val < 30.to[T]),
                               Seq((rising_pred + falling_pred)/2.to[T], rising_pred, falling_pred))
-    DELAY(full_pred)
+    DELAY(in.row, full_pred, Bit(true))
   }
   def Polyfit_4 = Blackbox.SpatialPrimitive[FEATURES, DELAY] { in: FEATURES =>
     val (rising_model, falling_model) = Polyfit_Raw_Data.Polyfit_4_params[T](x => x.toSaturating[T])
@@ -641,6 +649,45 @@ class Timetool_Boxes[IDX <: INT[_], DEC <: INT[_], FRAC <: INT[_]]
     val falling_pred = compute(in.falling_idx.to[T], falling_model)
     val full_pred = oneHotMux(Seq(in.first_val < 30.to[T] && in.last_val < 30.to[T], in.first_val < 30.to[T] && in.last_val >= 30.to[T], in.first_val >= 30.to[T] && in.last_val < 30.to[T]),
                               Seq((rising_pred + falling_pred)/2.to[T], rising_pred, falling_pred))
-    DELAY(full_pred)
+    DELAY(in.row, full_pred, Bit(true))
+  }
+
+  def Aggregator(num_rows: scala.Int, num_streams: scala.Int) = Blackbox.SpatialController[DELAYPACKET, PRED] { in : DELAYPACKET =>
+    @struct case class AGG(count: I, x: H, x2: H)
+    implicit class AggHelp(a: AGG) {
+      def +(b: AGG): AGG = AGG(a.count + b.count, a.x + b.x, a.x2 + b.x2)
+    }
+    val deltas = LUT[T](108)(0.0.toUnchecked[T], -366.63.toUnchecked[T], -183.32.toUnchecked[T], 183.31.toUnchecked[T], 366.63.toUnchecked[T], 183.31.toUnchecked[T], -183.32.toUnchecked[T], -733.26.toUnchecked[T], -366.63.toUnchecked[T],
+      366.63.toUnchecked[T], 733.26.toUnchecked[T], 366.63.toUnchecked[T], -366.63.toUnchecked[T], -549.95.toUnchecked[T], 0.0.toUnchecked[T], 549.94.toUnchecked[T], 549.94.toUnchecked[T], 0.0.toUnchecked[T], -549.95.toUnchecked[T], -1099.895.toUnchecked[T],
+      -549.95.toUnchecked[T], 549.94.toUnchecked[T], 1099.89.toUnchecked[T], 549.94.toUnchecked[T], -549.95.toUnchecked[T], -916.58.toUnchecked[T], -183.32.toUnchecked[T], 733.26.toUnchecked[T], 916.57.toUnchecked[T], 183.31.toUnchecked[T], -733.26.toUnchecked[T],
+      -916.58.toUnchecked[T], -733.26.toUnchecked[T], 183.31.toUnchecked[T], 916.57.toUnchecked[T], 733.26.toUnchecked[T], -183.32.toUnchecked[T], -1466.525.toUnchecked[T], -733.26.toUnchecked[T], 733.26.toUnchecked[T], 1466.52.toUnchecked[T], 733.26.toUnchecked[T],
+      -733.26.toUnchecked[T], -1283.21.toUnchecked[T], -366.63.toUnchecked[T], 916.57.toUnchecked[T], 1283.2.toUnchecked[T], 366.63.toUnchecked[T], -916.58.toUnchecked[T], -1283.21.toUnchecked[T], -916.58.toUnchecked[T], 366.63.toUnchecked[T], 1283.2.toUnchecked[T],
+      916.57.toUnchecked[T], -366.63.toUnchecked[T], -1099.895.toUnchecked[T], 0.0.toUnchecked[T], 1099.89.toUnchecked[T], 1099.89.toUnchecked[T], 0.0.toUnchecked[T], -1099.895.toUnchecked[T], -1833.15477.toUnchecked[T], -916.58.toUnchecked[T], 916.57.toUnchecked[T],
+      1833.15.toUnchecked[T], 916.57.toUnchecked[T], -916.58.toUnchecked[T], -1649.84.toUnchecked[T], -549.95.toUnchecked[T], 1099.89.toUnchecked[T], 1649.83.toUnchecked[T], 549.94.toUnchecked[T], -1099.895.toUnchecked[T], -1649.84.toUnchecked[T], -1099.895.toUnchecked[T],
+      549.94.toUnchecked[T], 1649.83.toUnchecked[T], 1099.89.toUnchecked[T], -549.95.toUnchecked[T], -1283.21.toUnchecked[T], 183.31.toUnchecked[T], 1466.52.toUnchecked[T], 1283.2.toUnchecked[T], -183.32.toUnchecked[T], -1466.525.toUnchecked[T], -1283.21.toUnchecked[T],
+      -1466.525.toUnchecked[T], -183.32.toUnchecked[T], 1283.2.toUnchecked[T], 1466.52.toUnchecked[T], 183.31.toUnchecked[T], -1649.84.toUnchecked[T], 0.0.toUnchecked[T], 1649.83.toUnchecked[T], 1649.83.toUnchecked[T], 0.0.toUnchecked[T], -1649.84.toUnchecked[T], -1833.15479.toUnchecked[T],
+      -366.63.toUnchecked[T], 1466.52.toUnchecked[T], 1833.15.toUnchecked[T], 366.63.toUnchecked[T], -1466.525.toUnchecked[T], -1833.15475.toUnchecked[T], 1466.525.toUnchecked[T], 366.63.toUnchecked[T], 1833.15.toUnchecked[T], 1466.52.toUnchecked[T], -366.63.toUnchecked[T])
+    def DELAY_TO_AGG(x: DELAY): AGG = mux(x.valid,
+                          AGG(1.to[I], (deltas(x.row.to[I32]) + x.delay).to[H], (deltas(x.row.to[I32]) + x.delay).to[H] * (deltas(x.row.to[I32]) + x.delay).to[H]),
+                          AGG(0.to[I], 0.to[H], 0.to[H]))
+    val mean = FIFO[T](8)
+    val variance = FIFO[T](8)
+    Pipe{
+      val aggregates = Reg[AGG](AGG(0.to[I],0.to[H],0.to[H]))
+      Reduce(aggregates)(num_rows / num_streams by 1){i =>
+        val pt0 = in.stream0
+        val pt1 = in.stream1
+        val pt2 = in.stream2
+        val pt3 = in.stream3
+        List(DELAY_TO_AGG(pt0), DELAY_TO_AGG(pt1), DELAY_TO_AGG(pt2), DELAY_TO_AGG(pt3)).reduceTree{_+_}
+      }{case (a: AGG, b: AGG) => a + b}
+      val agg = aggregates.value
+      val m = agg.x / agg.count.to[H]
+      val E2x = pow(m.to[H], 2)
+      val Ex2 = agg.x2 / agg.count.to[H]
+      mean.enq(m.to[T])
+      variance.enq((Ex2 - E2x).to[T])
+    }
+    PRED(mean.deqInterface(), variance.deqInterface())
   }
 }
